@@ -1,6 +1,5 @@
+import RFIDScanner from './src/RFIDScanner';
+import {RFIDScannerEvent} from './src/RFIDScannerEvent';
 
-import { NativeModules } from 'react-native';
-
-const { RNRfidTsl } = NativeModules;
-
-export default RNRfidTsl;
+export default RFIDScanner;
+export {RFIDScannerEvent};

@@ -12,6 +12,7 @@
   "author": "yaoweili",
   "license": "",
   "peerDependencies": {
-    "react-native": "^0.41.2"
+    "react-native": "^0.41.2",
+    "lodash": "4.17.11"
   }
 }
