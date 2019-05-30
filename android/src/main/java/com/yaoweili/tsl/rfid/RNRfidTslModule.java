@@ -5,7 +5,7 @@ import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
@@ -23,20 +23,20 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 		scannerThread = new RNRfidTslThread(reactContext) {
 			@Override
 			public void dispatchEvent(String name, WritableMap data) {
-				RNRfidTslModule.this.reactContext
-						.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit(name, data);
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
 			}
 
 			@Override
 			public void dispatchEvent(String name, String data) {
-				RNRfidTslModule.this.reactContext
-						.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit(name, data);
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
 			}
 
 			@Override
 			public void dispatchEvent(String name, WritableArray data) {
-				RNRfidTslModule.this.reactContext
-						.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit(name, data);
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
 			}
 		};
 
@@ -70,9 +70,107 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	}
 
 	@ReactMethod
-	public void ConnectDevice() {
+	public void Init(Promise promise) {
 		if (scannerThread != null) {
-			scannerThread.ConnectDevice();
+			promise.resolve(scannerThread.Init());
+		}
+	}
+
+	@ReactMethod
+	public void ConnectDevice(Promise promise) {
+		if (scannerThread != null) {
+			try {
+				promise.resolve(scannerThread.ConnectDevice());
+			} catch (Exception ex) {
+				promise.reject(ex);
+			}
+
+		}
+	}
+
+	@ReactMethod
+	public void DisconnectDevice() {
+		if (scannerThread != null) {
+			scannerThread.DisconnectDevice();
+		}
+	}
+
+	@ReactMethod
+	public void IsConnected(Promise promise) {
+		if (scannerThread != null) {
+			promise.resolve(scannerThread.IsConnected());
+		}
+	}
+
+	@ReactMethod
+	public void GetDeviceList(Promise promise) {
+		if (scannerThread != null) {
+			try {
+				promise.resolve(scannerThread.GetDeviceList());
+			} catch (Exception ex) {
+				promise.reject(ex);
+			}
+		}
+
+	}
+
+	@ReactMethod
+	public void SaveSelectedScanner(String name) {
+		if (scannerThread != null) {
+			scannerThread.SaveSelectedScanner(name);
+		}
+	}
+
+	@ReactMethod
+	public void GetBatteryLevel(Promise promise) {
+		if (scannerThread != null) {
+			try {
+				promise.resolve(scannerThread.GetBatteryLevel());
+			} catch (Exception ex) {
+				promise.reject(ex);
+			}
+
+		}
+
+	}
+
+	@ReactMethod
+	public void SetBuzzer(boolean value) {
+		if (scannerThread != null) {
+			scannerThread.SetBuzzer(value);
+		}
+	}
+
+	@ReactMethod
+	public void CleanCacheTags() {
+		if (scannerThread != null) {
+			scannerThread.CleanCacheTags();
+		}
+	}
+
+	@ReactMethod
+	public void GetAntennaLevel(Promise promise) {
+		if (scannerThread != null) {
+			try {
+				promise.resolve(scannerThread.GetAntennaLevel() + "");
+			} catch (Exception err) {
+				promise.reject(err);
+			}
+
+		}
+	}
+
+	@ReactMethod
+	public void SetAntennaLevel(int level) {
+		if (scannerThread != null) {
+			scannerThread.SetAntennaLevel(level);
+		}
+	}
+
+	@ReactMethod
+	public void setEnabled(boolean value) {
+		if (scannerThread != null) {
+			scannerThread.setEnabled(value);
 		}
 	}
 }
