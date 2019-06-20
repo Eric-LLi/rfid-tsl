@@ -20,27 +20,7 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 		this.reactContext = reactContext;
 		this.reactContext.addLifecycleEventListener(this);
 
-		scannerThread = new RNRfidTslThread(reactContext) {
-			@Override
-			public void dispatchEvent(String name, WritableMap data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
-
-			@Override
-			public void dispatchEvent(String name, String data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
-
-			@Override
-			public void dispatchEvent(String name, WritableArray data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
-		};
-
-		scannerThread.start();
+		InitialThread();
 	}
 
 	@Override
@@ -67,6 +47,37 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 		if (scannerThread != null) {
 			scannerThread.onHostDestroy();
 		}
+	}
+
+	@ReactMethod
+	public void InitialThread() {
+		scannerThread = new RNRfidTslThread(reactContext) {
+			@Override
+			public void dispatchEvent(String name, WritableMap data) {
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
+			}
+
+			@Override
+			public void dispatchEvent(String name, String data) {
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
+			}
+
+			@Override
+			public void dispatchEvent(String name, WritableArray data) {
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
+			}
+
+			@Override
+			public void dispatchEvent(String name, boolean data) {
+				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+						.emit(name, data);
+			}
+		};
+
+		scannerThread.start();
 	}
 
 	@ReactMethod
@@ -99,6 +110,25 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	public void IsConnected(Promise promise) {
 		if (scannerThread != null) {
 			promise.resolve(scannerThread.IsConnected());
+		}
+	}
+
+	@ReactMethod
+	public void AttemptToReconnect(Promise promise) {
+		try {
+			if (scannerThread != null) {
+				promise.resolve(scannerThread.AttemptToReconnect());
+			}
+		} catch (Exception err) {
+			promise.reject(err);
+		}
+
+	}
+
+	@ReactMethod
+	public void SaveCurrentRoute(String value) {
+		if (scannerThread != null) {
+			scannerThread.SaveCurrentRoute(value);
 		}
 	}
 
@@ -149,6 +179,17 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	}
 
 	@ReactMethod
+	public void ProgramTag(String oldTag, String newTag, Promise promise) {
+		if (scannerThread != null) {
+			try {
+				promise.resolve(scannerThread.ProgramTag(oldTag, newTag));
+			} catch (Exception err) {
+				promise.reject(err);
+			}
+		}
+	}
+
+	@ReactMethod
 	public void GetAntennaLevel(Promise promise) {
 		if (scannerThread != null) {
 			try {
@@ -172,5 +213,37 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 		if (scannerThread != null) {
 			scannerThread.setEnabled(value);
 		}
+	}
+
+	@ReactMethod
+	public void TagITReadBarcode(boolean value, Promise promise) {
+		if (scannerThread != null) {
+			scannerThread.TagITReadBarcode(value);
+			promise.resolve("Done");
+		}
+	}
+
+	@ReactMethod
+	public void SaveTagID(String tag, Promise promise) {
+		try {
+			if (this.scannerThread != null) {
+				promise.resolve(scannerThread.SaveTagID(tag));
+			}
+		} catch (Exception err) {
+			promise.reject(err);
+		}
+
+	}
+
+	@ReactMethod
+	public void LocateMode(boolean value, Promise promise) {
+		try {
+			if (this.scannerThread != null) {
+				promise.resolve(scannerThread.LocateMode(value));
+			}
+		} catch (Exception err) {
+			promise.reject(err);
+		}
+
 	}
 }

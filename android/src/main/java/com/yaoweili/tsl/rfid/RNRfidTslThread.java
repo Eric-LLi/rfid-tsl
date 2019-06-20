@@ -3,7 +3,7 @@ package com.yaoweili.tsl.rfid;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.support.v4.content.LocalBroadcastManager;
+//import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -13,23 +13,34 @@ import com.facebook.react.bridge.WritableMap;
 
 import android.content.Context;
 
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import com.uk.tsl.rfid.asciiprotocol.AsciiCommander;
 import com.uk.tsl.rfid.asciiprotocol.commands.AlertCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.BatteryStatusCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.FactoryDefaultsCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.InventoryCommand;
+import com.uk.tsl.rfid.asciiprotocol.commands.SwitchActionCommand;
+import com.uk.tsl.rfid.asciiprotocol.commands.WriteTransponderCommand;
 import com.uk.tsl.rfid.asciiprotocol.device.ConnectionState;
 import com.uk.tsl.rfid.asciiprotocol.device.IAsciiTransport;
 import com.uk.tsl.rfid.asciiprotocol.device.ObservableReaderList;
 import com.uk.tsl.rfid.asciiprotocol.device.Reader;
 import com.uk.tsl.rfid.asciiprotocol.device.ReaderManager;
 import com.uk.tsl.rfid.asciiprotocol.device.TransportType;
-import com.uk.tsl.rfid.asciiprotocol.enumerations.BuzzerTone;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.AlertDuration;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.Databank;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.QuerySelect;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.QuerySession;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.QueryTarget;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.SelectAction;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.SelectTarget;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.SwitchState;
 import com.uk.tsl.rfid.asciiprotocol.enumerations.TriState;
-import com.uk.tsl.rfid.asciiprotocol.parameters.AntennaParameters;
 import com.uk.tsl.rfid.asciiprotocol.responders.ICommandResponseLifecycleDelegate;
+import com.uk.tsl.rfid.asciiprotocol.responders.ISwitchStateReceivedDelegate;
 import com.uk.tsl.rfid.asciiprotocol.responders.ITransponderReceivedDelegate;
-import com.uk.tsl.rfid.asciiprotocol.responders.LoggerResponder;
+import com.uk.tsl.rfid.asciiprotocol.responders.SwitchResponder;
 import com.uk.tsl.rfid.asciiprotocol.responders.TransponderData;
 import com.uk.tsl.utils.HexEncoding;
 import com.uk.tsl.utils.Observable;
@@ -40,6 +51,7 @@ import java.util.Locale;
 public abstract class RNRfidTslThread extends Thread {
 	private ReactApplicationContext context = null;
 
+	private static String currentRoute = null;
 	// The Reader currently in use
 	private Reader mReader = null;
 	// Available reader list
@@ -47,10 +59,21 @@ public abstract class RNRfidTslThread extends Thread {
 	// User selected reader
 	private String selectedReader = null;
 
-	private InventoryCommand mInventoryCommand = null;
-	private InventoryCommand mInventoryResponder = null;
-	private boolean mAnyTagSeen;
-	private ArrayList<String> cacheTags = null;
+	//Indicate to read barcode
+	private static boolean isReadBarcode = false;
+
+	private static InventoryCommand mInventoryCommand = null;
+	private static InventoryCommand mInventoryResponder = null;
+	private static boolean mAnyTagSeen;
+	private static ArrayList<String> cacheTags = null;
+
+	//Save tag for locating tag
+	private static String tagID = null;
+	//Indicate is in Find IT mode or not.
+	private static boolean locateMode = false;
+	//Program tag
+	private static final WriteTransponderCommand mWriteCommand =
+			WriteTransponderCommand.synchronousCommand();
 
 	public RNRfidTslThread(ReactApplicationContext context) {
 		this.context = context;
@@ -62,6 +85,8 @@ public abstract class RNRfidTslThread extends Thread {
 	public abstract void dispatchEvent(String name, String data);
 
 	public abstract void dispatchEvent(String name, WritableArray data);
+
+	public abstract void dispatchEvent(String name, boolean data);
 
 	public void onHostResume() {
 		if (mReader != null && ReaderManager.sharedInstance() != null) {
@@ -121,41 +146,8 @@ public abstract class RNRfidTslThread extends Thread {
 			// Ensure that all existing responders are removed
 			commander.clearResponders();
 
-			// Add the LoggerResponder - this simply echoes all lines received from the
-			// reader to the log
-			// and passes the line onto the next responder
-			// This is ADDED FIRST so that no other responder can consume received lines
-			// before they are logged.
-			commander.addResponder(new LoggerResponder());
-
-			//
-			// Add a simple Responder that sends the Reader output to the App message list
-			//
-			// Note - This is not the recommended way of receiving Reader input - it is just
-			// a convenient
-			// way to show that the Reader is connected and communicating - see the other
-			// Sample Projects
-			// for how to Inventory, Read, Write etc....
-			//
-			// commander.addResponder(new IAsciiCommandResponder() {
-			// @Override
-			// public boolean isResponseFinished() {
-			// return false;
-			// }
-			//
-			// @Override
-			// public void clearLastResponse() {
-			// }
-			//
-			// @Override
-			// public boolean processReceivedLine(String fullLine, boolean
-			// moreLinesAvailable) {
-			//// appendMessage("> " + fullLine);
-			//// Log.e("processReceivedLine", fullLine);
-			// // don't consume the line - allow others to receive it
-			// return false;
-			// }
-			// });
+			//Logger
+			//commander.addResponder(new LoggerResponder());
 
 			// Add responder to enable the synchronous commands
 			commander.addSynchronousResponder();
@@ -177,70 +169,39 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	}
 
-	private void InitialInventory() {
+	private void InitInventory() {
 
 		// Initiate tags array for saving scanned tags, and prevent duplicate tags.
 		cacheTags = new ArrayList<>();
 
 		// This is the command that will be used to perform configuration changes and
 		// inventories
-		mInventoryCommand = new InventoryCommand();
-		mInventoryCommand.setResetParameters(TriState.YES);
+		setInventoryCommand(new InventoryCommand());
+		getInventoryCommand().setResetParameters(TriState.YES);
 		// Configure the type of inventory
-		mInventoryCommand.setIncludeTransponderRssi(TriState.YES);
-		mInventoryCommand.setIncludeChecksum(TriState.YES);
-		mInventoryCommand.setIncludePC(TriState.YES);
-		mInventoryCommand.setIncludeDateTime(TriState.YES);
+		getInventoryCommand().setIncludeTransponderRssi(TriState.YES);
+		getInventoryCommand().setIncludeChecksum(TriState.YES);
+		getInventoryCommand().setIncludePC(TriState.YES);
+		getInventoryCommand().setIncludeDateTime(TriState.YES);
 
 		// Use an InventoryCommand as a responder to capture all incoming inventory
 		// responses
-		mInventoryResponder = new InventoryCommand();
+		setInventoryResponder(new InventoryCommand());
 
 		// Also capture the responses that were not from App commands
-		mInventoryResponder.setCaptureNonLibraryResponses(true);
+		getInventoryResponder().setCaptureNonLibraryResponses(true);
 
 		// Notify when each transponder is seen
-		mInventoryResponder.setTransponderReceivedDelegate(new ITransponderReceivedDelegate() {
+		getInventoryResponder().setTransponderReceivedDelegate(mInventoryDelegate);
 
-			@Override
-			public void transponderReceived(TransponderData transponder, boolean moreAvailable) {
-				mAnyTagSeen = true;
-
-				String tidMessage = transponder.getTidData() == null ? ""
-						: HexEncoding.bytesToString(transponder.getTidData());
-				String infoMsg = String.format(Locale.US, "\nRSSI: %d  PC: %04X  CRC: %04X", transponder.getRssi(),
-						transponder.getPc(), transponder.getCrc());
-				// sendMessageNotification("EPC: " + transponder.getEpc() + infoMsg + "\nTID: "
-				// + tidMessage + "\n# " + mTagsSeen );
-
-				boolean existedTag = false;
-				for (int i = 0; i < cacheTags.size(); i++) {
-					if (cacheTags.get(i).equals(transponder.getEpc())) {
-						existedTag = true;
-					}
-				}
-
-				if (!existedTag) {
-					Log.e("Tag", transponder.getEpc());
-					cacheTags.add(transponder.getEpc());
-					dispatchEvent("tag", transponder.getEpc());
-				}
-
-				if (!moreAvailable) {
-					// sendMessageNotification("");
-					// Log.d("TagCount", String.format("Tags seen: %s", mTagsSeen));
-				}
-			}
-		});
-
-		mInventoryResponder.setResponseLifecycleDelegate(new ICommandResponseLifecycleDelegate() {
+		getInventoryResponder().setResponseLifecycleDelegate(new ICommandResponseLifecycleDelegate() {
 
 			@Override
 			public void responseEnded() {
-				if (!mAnyTagSeen && mInventoryCommand.getTakeNoAction() != TriState.YES) {
+				if (!mAnyTagSeen && getInventoryCommand().getTakeNoAction() != TriState.YES) {
 					// sendMessageNotification("No transponders seen");
 				}
-				mInventoryCommand.setTakeNoAction(TriState.NO);
+				getInventoryCommand().setTakeNoAction(TriState.NO);
 			}
 
 			@Override
@@ -249,6 +210,232 @@ public abstract class RNRfidTslThread extends Thread {
 			}
 		});
 	}
+
+	public void InitTrigger() {
+		//Trigger Init
+		SwitchResponder switchResponder = new SwitchResponder();
+		switchResponder.setSwitchStateReceivedDelegate(mSwitchDelegate);
+		getCommander().addResponder(switchResponder);
+
+		// Configure the switch actions
+		SwitchActionCommand saCommand = SwitchActionCommand.synchronousCommand();
+		// Enable asynchronous switch state reporting
+		saCommand.setAsynchronousReportingEnabled(TriState.YES);
+
+		getCommander().executeCommand(saCommand);
+	}
+
+	public void InitProgramTag() {
+		mWriteCommand.setResetParameters(TriState.YES);
+
+		mWriteCommand.setSelectOffset(0x20);
+		mWriteCommand.setBank(Databank.ELECTRONIC_PRODUCT_CODE);
+		mWriteCommand.setOffset(2);
+
+		mWriteCommand.setSelectAction(SelectAction.DEASSERT_SET_B_NOT_ASSERT_SET_A);
+		mWriteCommand.setSelectTarget(SelectTarget.SESSION_2);
+
+		mWriteCommand.setQuerySelect(QuerySelect.ALL);
+		mWriteCommand.setQuerySession(QuerySession.SESSION_2);
+		mWriteCommand.setQueryTarget(QueryTarget.TARGET_B);
+
+		mWriteCommand.setTransponderReceivedDelegate(mProgramTagDelegate);
+	}
+
+	public void InitLocateTag() {
+		if (getCommander() != null && getCommander().isConnected() && getInventoryCommand() != null) {
+			getInventoryCommand().setResetParameters(TriState.YES);
+			getInventoryCommand().setInventoryOnly(TriState.NO);
+			getInventoryCommand().setTakeNoAction(TriState.YES);
+			getInventoryCommand().setSelectBank(Databank.ELECTRONIC_PRODUCT_CODE);
+			getInventoryCommand().setSelectAction(SelectAction.DEASSERT_SET_B_NOT_ASSERT_SET_A);
+			getInventoryCommand().setSelectTarget(SelectTarget.SESSION_0);
+			getInventoryCommand().setQueryTarget(QueryTarget.TARGET_B);
+			getInventoryCommand().setQuerySession(QuerySession.SESSION_0);
+			getInventoryCommand().setSelectOffset(0x20);
+			getInventoryCommand().setSelectLength(tagID.length() * 4);
+			getInventoryCommand().setSelectData(tagID);
+			getCommander().executeCommand(mInventoryCommand);
+			if (!mWriteCommand.isSuccessful()) {
+				String errorMsg = String.format(
+						"%s failed!\nError code: %s\n",
+						mWriteCommand.getClass().getSimpleName(), mWriteCommand.getErrorCode());
+//					dispatchEvent("writeTag", errorMsg);
+//					return false;
+			}
+		}
+	}
+
+	public boolean LocateMode(boolean value) {
+		if (getCommander() != null && getCommander().isConnected()) {
+			locateMode = value;
+			if (locateMode && tagID != null && !tagID.equals("")) {
+				InitLocateTag();
+				return true;
+			} else {
+				getInventoryCommand().setResetParameters(TriState.YES);
+				getInventoryCommand().setTakeNoAction(TriState.YES);
+				getInventoryCommand().setIncludeTransponderRssi(TriState.YES);
+				getInventoryCommand().setIncludeChecksum(TriState.YES);
+				getInventoryCommand().setIncludePC(TriState.YES);
+				getInventoryCommand().setIncludeDateTime(TriState.YES);
+
+				getCommander().executeCommand(mInventoryCommand);
+				if (!mWriteCommand.isSuccessful()) {
+					String errorMsg = String.format(
+							"%s failed!\nError code: %s\n",
+							mWriteCommand.getClass().getSimpleName(), mWriteCommand.getErrorCode());
+//					dispatchEvent("writeTag", errorMsg);
+//					return false;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean SaveTagID(String tag) {
+		if (getCommander() != null && getCommander().isConnected()) {
+			tagID = tag;
+			return true;
+		}
+		return false;
+	}
+
+	public boolean ProgramTag(String oldTag, String newTag) {
+		if (getCommander() != null && getCommander().isConnected()) {
+			if (oldTag != null && newTag != null) {
+				byte[] data = null;
+				data = HexEncoding.stringToBytes(newTag);
+				mWriteCommand.setData(data);
+				mWriteCommand.setLength(data.length / 2);
+				mWriteCommand.setSelectData(oldTag);
+				mWriteCommand.setSelectLength(oldTag.length() * 4);
+				getCommander().executeCommand(mWriteCommand);
+
+				if (!mWriteCommand.isSuccessful()) {
+					String errorMsg = String.format(
+							"%s failed!\nError code: %s\n",
+							mWriteCommand.getClass().getSimpleName(), mWriteCommand.getErrorCode());
+					dispatchEvent("writeTag", errorMsg);
+					return false;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void setInventoryCommand(InventoryCommand iCommand) {
+		this.mInventoryCommand = iCommand;
+	}
+
+	private InventoryCommand getInventoryCommand() {
+		return this.mInventoryCommand;
+	}
+
+	private void setInventoryResponder(InventoryCommand iCommand) {
+		this.mInventoryResponder = iCommand;
+	}
+
+	private InventoryCommand getInventoryResponder() {
+		return this.mInventoryResponder;
+	}
+
+	private void setCurrentRoute(String value) {
+		this.currentRoute = value;
+	}
+
+	private String getCurrentRoute() {
+		return this.currentRoute;
+	}
+
+	//Trigger Handler
+	private final ISwitchStateReceivedDelegate mSwitchDelegate = new ISwitchStateReceivedDelegate() {
+
+		@Override
+		public void switchStateReceived(SwitchState state) {
+			// Use the alert command to indicate the type of asynchronous switch press
+			// No vibration just vary the tone & duration
+			if (getCurrentRoute().equals("tagit") || getCurrentRoute().equals("lookup")) {
+				if (SwitchState.OFF.equals(state)) {
+					//Trigger Release
+					if (isReadBarcode && getCurrentRoute().equals("tagit")) {
+						dispatchEvent("BarcodeTrigger", false);
+					}
+				} else {
+					//Trigger Pull
+					if (isReadBarcode && getCurrentRoute().equals("tagit")) {
+						dispatchEvent("BarcodeTrigger", true);
+					} else if (getCurrentRoute().equals("lookup")) {
+						WritableMap map = Arguments.createMap();
+						map.putString("RFIDStatusEvent", "inventoryStart");
+						dispatchEvent("triggerAction", map);
+					}
+				}
+			}
+		}
+	};
+
+	//Inventory Delegate Handler
+	private final ITransponderReceivedDelegate mInventoryDelegate =
+			new ITransponderReceivedDelegate() {
+				@Override
+				public void transponderReceived(TransponderData transponder, boolean moreAvailable) {
+					//Inventory received tags
+					mAnyTagSeen = true;
+
+					if (locateMode) {
+						int rssi = transponder.getRssi();
+						WritableMap map = Arguments.createMap();
+						map.putInt("distance", rssi);
+						dispatchEvent("locateTag", map);
+					} else {
+						boolean existedTag = false;
+						for (int i = 0; i < cacheTags.size(); i++) {
+							if (cacheTags.get(i).equals(transponder.getEpc())) {
+								existedTag = true;
+							}
+						}
+
+						if (!existedTag) {
+							Log.e("Tag Received", transponder.getEpc());
+							Log.e("RSSI", transponder.getRssi() + "");
+							cacheTags.add(transponder.getEpc());
+							if (getCurrentRoute().equals("tagit")) {
+								if (cacheTags.size() == 1) {
+									dispatchEvent("TagEvent", transponder.getEpc());
+								}
+							} else {
+								dispatchEvent("TagEvent", transponder.getEpc());
+							}
+						}
+
+						if (!moreAvailable) {
+							// sendMessageNotification("");
+							// Log.d("TagCount", String.format("Tags seen: %s", mTagsSeen));
+						}
+					}
+
+				}
+			};
+
+	//Program tag Delegate Handler
+	private final ITransponderReceivedDelegate mProgramTagDelegate =
+			new ITransponderReceivedDelegate() {
+				@Override
+				public void transponderReceived(TransponderData transponderData, boolean b) {
+					String eaMsg = transponderData.getAccessErrorCode() == null ? "" : transponderData.getAccessErrorCode().getDescription() + " (EA)";
+					String ebMsg = transponderData.getBackscatterErrorCode() == null ? "" : transponderData.getBackscatterErrorCode().getDescription() + " (EB)";
+					String errorMsg = eaMsg + ebMsg;
+					if (errorMsg.length() > 0) {
+						dispatchEvent("writeTag", errorMsg);
+					} else {
+						dispatchEvent("writeTag", "success");
+					}
+				}
+				//
+			};
 
 	public void DisconnectDevice() {
 		if (mReader != null && getCommander() != null) {
@@ -285,6 +472,14 @@ public abstract class RNRfidTslThread extends Thread {
 		return false;
 	}
 
+	public boolean AttemptToReconnect() {
+		if (selectedReader != null) {
+			AutoSelectReader(true);
+			return true;
+		}
+		return false;
+	}
+
 	public boolean IsConnected() {
 		if (getCommander() != null) {
 			return getCommander().isConnected();
@@ -302,12 +497,12 @@ public abstract class RNRfidTslThread extends Thread {
 		// Update the commander for state changes
 		if (state) {
 			// Listen for transponders
-			getCommander().addResponder(mInventoryResponder);
+			getCommander().addResponder(getInventoryResponder());
 			// Listen for barcodes
 			// getCommander().addResponder(mBarcodeResponder);
 		} else {
 			// Stop listening for transponders
-			getCommander().removeResponder(mInventoryResponder);
+			getCommander().removeResponder(getInventoryResponder());
 			// Stop listening for barcodes
 			// getCommander().removeResponder(mBarcodeResponder);
 		}
@@ -330,11 +525,23 @@ public abstract class RNRfidTslThread extends Thread {
 		try {
 			testForAntenna();
 			if (getCommander() != null && getCommander().isConnected()) {
-				mInventoryCommand.setTakeNoAction(TriState.NO);
-				getCommander().executeCommand(mInventoryCommand);
+				getInventoryCommand().setTakeNoAction(TriState.NO);
+				getCommander().executeCommand(getInventoryCommand());
 			}
 		} catch (Exception ex) {
 			HandleError(ex);
+		}
+	}
+
+	public void SaveCurrentRoute(String value) {
+		if (value != null) {
+			setCurrentRoute(value.toLowerCase());
+			if (getCurrentRoute().equals("register") || getCurrentRoute().equals("lookup") || getCurrentRoute().equals(
+					"audit") || getCurrentRoute().equals("locatetag")) {
+				setEnabled(true);
+			}
+		} else {
+			setEnabled(false);
 		}
 	}
 
@@ -358,7 +565,7 @@ public abstract class RNRfidTslThread extends Thread {
 			getCommander().executeCommand(bCommand);
 			int batteryLevel = bCommand.getBatteryLevel();
 			Log.e("BatteryLevel", batteryLevel + "");
-			level = "BatteryLevel: " + batteryLevel + "%";
+			level = String.valueOf(batteryLevel);
 		}
 		return level;
 	}
@@ -373,8 +580,8 @@ public abstract class RNRfidTslThread extends Thread {
 
 	public int GetAntennaLevel() {
 		if (getCommander() != null && getCommander().isConnected()) {
-			getCommander().executeCommand(mInventoryCommand);
-			int level = mInventoryCommand.getOutputPower();
+			getCommander().executeCommand(getInventoryCommand());
+			int level = getInventoryCommand().getOutputPower();
 			if (level > 0)
 				return level;
 		}
@@ -383,21 +590,23 @@ public abstract class RNRfidTslThread extends Thread {
 
 	public void SetAntennaLevel(int level) {
 		if (getCommander() != null && getCommander().isConnected()) {
-			mInventoryCommand.setOutputPower(level);
-			getCommander().executeCommand(mInventoryCommand);
+			getInventoryCommand().setOutputPower(level);
+			getInventoryCommand().setTakeNoAction(TriState.YES);
+			getCommander().executeCommand(getInventoryCommand());
 		}
 	}
 
 	public void updateConfiguration() {
 		if (getCommander() != null && getCommander().isConnected()) {
-			mInventoryCommand.setTakeNoAction(TriState.YES);
-			getCommander().executeCommand(mInventoryCommand);
+			getInventoryCommand().setTakeNoAction(TriState.YES);
+			getCommander().executeCommand(getInventoryCommand());
 		}
 	}
 
 	public void SaveSelectedScanner(String name) {
 		selectedReader = name;
 	}
+
 
 	//
 	// Select the Reader to use and reconnect to it as needed
@@ -514,9 +723,10 @@ public abstract class RNRfidTslThread extends Thread {
 				WritableMap map = Arguments.createMap();
 				if (getCommander().getConnectionState().equals(ConnectionState.CONNECTED)) {
 					resetDevice();
-					InitialInventory();
+					InitInventory();
+					InitTrigger();
+					InitProgramTag();
 					SetBuzzer(false);
-					// setEnabled(true);
 					updateConfiguration();
 					SetAntennaLevel(getCommander().getDeviceProperties().getMaximumCarrierPower());
 					String battery = GetBatteryLevel();
@@ -537,6 +747,13 @@ public abstract class RNRfidTslThread extends Thread {
 			}
 		}
 	};
+
+	public void TagITReadBarcode(boolean value) {
+		isReadBarcode = value;
+
+		//If read barcode, then turn off RFID mode.
+		setEnabled(!value);
+	}
 
 	private void resetDevice() {
 		if (getCommander().isConnected()) {
