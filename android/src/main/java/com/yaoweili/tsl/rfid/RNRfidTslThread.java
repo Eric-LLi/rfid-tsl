@@ -360,6 +360,8 @@ public abstract class RNRfidTslThread extends Thread {
 					//Trigger Release
 					if (isReadBarcode && getCurrentRoute().equals("tagit")) {
 						dispatchEvent("BarcodeTrigger", false);
+					} else if (getCurrentRoute().equals("tagit")) {
+						cacheTags = new ArrayList<>();
 					}
 				} else {
 					//Trigger Pull
@@ -572,6 +574,7 @@ public abstract class RNRfidTslThread extends Thread {
 		if (getCommander() != null && getCommander().isConnected()) {
 			AlertCommand aCommand = AlertCommand.synchronousCommand();
 			aCommand.setEnableBuzzer(value ? TriState.YES : TriState.NO);
+			aCommand.setEnableVibrator(value ? TriState.YES : TriState.NO);
 			getCommander().executeCommand(aCommand);
 		}
 	}
