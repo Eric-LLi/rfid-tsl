@@ -355,19 +355,27 @@ public abstract class RNRfidTslThread extends Thread {
 		public void switchStateReceived(SwitchState state) {
 			// Use the alert command to indicate the type of asynchronous switch press
 			// No vibration just vary the tone & duration
-			if (getCurrentRoute().equals("tagit") || getCurrentRoute().equals("lookup")) {
+			if (getCurrentRoute().equals("tagit") || getCurrentRoute().equals("lookup") || getCurrentRoute().equals("locatetag")) {
 				if (SwitchState.OFF.equals(state)) {
 					//Trigger Release
 					if (isReadBarcode && getCurrentRoute().equals("tagit")) {
 						dispatchEvent("BarcodeTrigger", false);
 					} else if (getCurrentRoute().equals("tagit")) {
 						cacheTags = new ArrayList<>();
+					} else if (getCurrentRoute().equals("locatetag")) {
+						WritableMap map = Arguments.createMap();
+						map.putString("RFIDStatusEvent", "inventoryStop");
+						dispatchEvent("triggerAction", map);
 					}
 				} else {
 					//Trigger Pull
 					if (isReadBarcode && getCurrentRoute().equals("tagit")) {
 						dispatchEvent("BarcodeTrigger", true);
 					} else if (getCurrentRoute().equals("lookup")) {
+						WritableMap map = Arguments.createMap();
+						map.putString("RFIDStatusEvent", "inventoryStart");
+						dispatchEvent("triggerAction", map);
+					} else if (getCurrentRoute().equals("locatetag")) {
 						WritableMap map = Arguments.createMap();
 						map.putString("RFIDStatusEvent", "inventoryStart");
 						dispatchEvent("triggerAction", map);
@@ -386,9 +394,20 @@ public abstract class RNRfidTslThread extends Thread {
 					mAnyTagSeen = true;
 
 					if (locateMode) {
-						int rssi = transponder.getRssi();
+						//RSSI range from -45 to -70.
+						long distance;
+						double rssi = transponder.getRssi();
+						if (rssi >= -45) {
+							distance = 100;
+						} else if (rssi < -70) {
+							distance = 0;
+						} else {
+							double num = (70 + rssi) * 100 / 35;
+							distance = Math.round(num);
+						}
+
 						WritableMap map = Arguments.createMap();
-						map.putInt("distance", rssi);
+						map.putInt("distance", (int) distance);
 						dispatchEvent("locateTag", map);
 					} else {
 						boolean existedTag = false;
