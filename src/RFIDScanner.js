@@ -71,11 +71,11 @@ class RFIDScanner {
 		}
 	};
 
-	HandleLocateTag = (event) => {
+	HandleLocateTag = event => {
 		if (this.onCallBacks.hasOwnProperty(RFIDScannerEvent.LOCATE_TAG)) {
 			this.onCallBacks[RFIDScannerEvent.LOCATE_TAG](event);
 		}
-	}
+	};
 	// HandlerBarcode = event => {
 	// 	if (this.onCallBacks.hasOwnProperty(RFIDScannerEvent.BARCODE)) {
 	// 		this.onCallBacks[RFIDScannerEvent.BARCODE](event);
@@ -88,6 +88,7 @@ class RFIDScanner {
 		this.barcodeTriggerEvent.remove();
 		this.writeTagEvent.remove();
 		this.triggerActionEvent.remove();
+		this.LocateTagEvent.remove();
 		// this.barcodeEvent.remove();
 	};
 
@@ -139,6 +140,10 @@ class RFIDScanner {
 
 	SaveSelectedScanner = name => {
 		RNRfidTsl.SaveSelectedScanner(name);
+	};
+
+	GetConnectedReader = () => {
+		return RNRfidTsl.GetConnectedReader();
 	};
 
 	GetBatteryLevel = () => {

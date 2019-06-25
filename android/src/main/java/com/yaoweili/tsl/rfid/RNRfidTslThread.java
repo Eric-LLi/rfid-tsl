@@ -627,6 +627,9 @@ public abstract class RNRfidTslThread extends Thread {
 		selectedReader = name;
 	}
 
+	public String GetConnectedReader() {
+		return selectedReader;
+	}
 
 	//
 	// Select the Reader to use and reconnect to it as needed
