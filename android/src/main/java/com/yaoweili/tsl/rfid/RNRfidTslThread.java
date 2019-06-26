@@ -55,7 +55,7 @@ public abstract class RNRfidTslThread extends Thread {
 	// Available reader list
 	private ArrayList<Reader> mReaders = null;
 	// User selected reader
-	private String selectedReader = null;
+	private static String selectedReader = null;
 
 	//Indicate to read barcode
 	private static boolean isReadBarcode = false;
