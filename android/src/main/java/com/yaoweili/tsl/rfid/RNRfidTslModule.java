@@ -20,7 +20,10 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 		this.reactContext = reactContext;
 		this.reactContext.addLifecycleEventListener(this);
 
-		InitialThread();
+		if (this.scannerThread == null) {
+			InitialThread();
+		}
+
 	}
 
 	@Override
@@ -51,7 +54,10 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 
 	@ReactMethod
 	public void InitialThread() {
-		scannerThread = new RNRfidTslThread(reactContext) {
+		if (this.scannerThread != null) {
+			this.scannerThread.interrupt();
+		}
+		this.scannerThread = new RNRfidTslThread(reactContext) {
 			@Override
 			public void dispatchEvent(String name, WritableMap data) {
 				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
@@ -77,7 +83,8 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 			}
 		};
 
-		scannerThread.start();
+		this.scannerThread.start();
+		
 	}
 
 	@ReactMethod
