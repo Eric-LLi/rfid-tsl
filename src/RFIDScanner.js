@@ -58,12 +58,30 @@ class RFIDScanner {
 	// };
 
 	RemoveAllListener = () => {
-		if (!_.isEmpty(this.tagEvent)) this.tagEvent.remove();
-		if (!_.isEmpty(this.rfidStatusEvent)) this.rfidStatusEvent.remove();
-		if (!_.isEmpty(this.barcodeTriggerEvent)) this.barcodeTriggerEvent.remove();
-		if (!_.isEmpty(this.writeTagEvent)) this.writeTagEvent.remove();
-		if (!_.isEmpty(this.triggerActionEvent)) this.triggerActionEvent.remove();
-		if (!_.isEmpty(this.LocateTagEvent)) this.LocateTagEvent.remove();
+		if (!_.isEmpty(this.tagEvent)) {
+			this.tagEvent.remove();
+			this.tagEvent = null;
+		}
+		if (!_.isEmpty(this.rfidStatusEvent)) {
+			this.rfidStatusEvent.remove();
+			this.rfidStatusEvent = null;
+		}
+		if (!_.isEmpty(this.barcodeTriggerEvent)) {
+			this.barcodeTriggerEvent.remove();
+			this.barcodeTriggerEvent = null;
+		}
+		if (!_.isEmpty(this.writeTagEvent)) {
+			this.writeTagEvent.remove();
+			this.writeTagEvent = null;
+		}
+		if (!_.isEmpty(this.triggerActionEvent)) {
+			this.triggerActionEvent.remove();
+			this.triggerActionEvent = null;
+		}
+		if (!_.isEmpty(this.LocateTagEvent)) {
+			this.LocateTagEvent.remove();
+			this.LocateTagEvent = null;
+		}
 	};
 
 	ActiveAllListener = () => {
@@ -97,7 +115,7 @@ class RFIDScanner {
 	};
 
 	InitialThread = () => {
-		return RNRfidTsl.InitialThread();
+		RNRfidTsl.InitialThread();
 	};
 
 	// init = () => {
