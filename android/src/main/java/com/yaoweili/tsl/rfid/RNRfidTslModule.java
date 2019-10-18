@@ -1,6 +1,8 @@
 
 package com.yaoweili.tsl.rfid;
 
+import android.util.Log;
+
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -54,37 +56,43 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 
 	@ReactMethod
 	public void InitialThread() {
-		if (this.scannerThread != null) {
-			this.scannerThread.interrupt();
+		try {
+			if (this.scannerThread != null) {
+				this.scannerThread.interrupt();
+			}
+			this.scannerThread = new RNRfidTslThread(reactContext) {
+				@Override
+				public void dispatchEvent(String name, WritableMap data) {
+					RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+							.emit(name, data);
+				}
+
+				@Override
+				public void dispatchEvent(String name, String data) {
+					RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+							.emit(name, data);
+				}
+
+				@Override
+				public void dispatchEvent(String name, WritableArray data) {
+					RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+							.emit(name, data);
+				}
+
+				@Override
+				public void dispatchEvent(String name, boolean data) {
+					RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+							.emit(name, data);
+				}
+			};
+
+			this.scannerThread.start();
+
+		} catch (Exception err) {
+			Log.e("Error", err.getMessage());
 		}
-		this.scannerThread = new RNRfidTslThread(reactContext) {
-			@Override
-			public void dispatchEvent(String name, WritableMap data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
 
-			@Override
-			public void dispatchEvent(String name, String data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
 
-			@Override
-			public void dispatchEvent(String name, WritableArray data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
-
-			@Override
-			public void dispatchEvent(String name, boolean data) {
-				RNRfidTslModule.this.reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-						.emit(name, data);
-			}
-		};
-
-		this.scannerThread.start();
-		
 	}
 
 	@ReactMethod

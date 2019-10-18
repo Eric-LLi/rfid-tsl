@@ -1,7 +1,7 @@
 {
-  "name": "react-native-rfid-tsl",
+  "name": "@infiniteesoftware/react-native-rfid-tsl",
   "version": "1.0.0",
-  "description": "",
+  "description": "## Getting started",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,9 +10,17 @@
     "react-native"
   ],
   "author": "yaoweili",
-  "license": "",
+  "license": "ISC",
   "peerDependencies": {
     "react-native": "^0.41.2",
     "lodash": "4.17.11"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eric-LLi/rfid-tsl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Eric-LLi/rfid-tsl/issues"
+  },
+  "homepage": "https://github.com/Eric-LLi/rfid-tsl#readme"
 }
