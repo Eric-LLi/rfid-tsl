@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 //import android.support.v4.content.LocalBroadcastManager;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -88,41 +89,40 @@ public abstract class RNRfidTslThread extends Thread {
 	public abstract void dispatchEvent(String name, boolean data);
 
 	public void onHostResume() {
-		if (mReader != null && ReaderManager.sharedInstance() != null) {
-			// setEnabled(true);
-			// Remember if the pause/resume was caused by ReaderManager - this will be
-			// cleared when ReaderManager.onResume() is called
-			// boolean readerManagerDidCauseOnPause =
-			// ReaderManager.sharedInstance().didCauseOnPause();
-
-			// The ReaderManager needs to know about Activity lifecycle changes
-			ReaderManager.sharedInstance().onResume();
-
-			// The Activity may start with a reader already connected (perhaps by another
-			// App)
-			// Update the ReaderList which will add any unknown reader, firing events
-			// appropriately
-			ReaderManager.sharedInstance().updateList();
-
-			// Locate a Reader to use when necessary
-			AutoSelectReader(true);
-
-		}
+//		if (mReader != null && ReaderManager.sharedInstance() != null) {
+//			// setEnabled(true);
+//			// Remember if the pause/resume was caused by ReaderManager - this will be
+//			// cleared when ReaderManager.onResume() is called
+//			// boolean readerManagerDidCauseOnPause =
+//			// ReaderManager.sharedInstance().didCauseOnPause();
+//
+//			// The ReaderManager needs to know about Activity lifecycle changes
+//			ReaderManager.sharedInstance().onResume();
+//
+//			// The Activity may start with a reader already connected (perhaps by another
+//			// App)
+//			// Update the ReaderList which will add any unknown reader, firing events
+//			// appropriately
+//			ReaderManager.sharedInstance().updateList();
+//
+//			// Locate a Reader to use when necessary
+//			AutoSelectReader(true);
+//
+//		}
 	}
 
 	public void onHostPause() {
-		if (mReader != null && ReaderManager.sharedInstance() != null) {
-			setEnabled(false);
-			// Disconnect from the reader to allow other Apps to use it
-			// unless pausing when USB device attached or using the DeviceListActivity to
-			// select a Reader
-			if (!ReaderManager.sharedInstance().didCauseOnPause() && mReader != null) {
-				mReader.disconnect();
-			}
-
-			ReaderManager.sharedInstance().onPause();
-		}
-
+//		if (mReader != null && ReaderManager.sharedInstance() != null) {
+//			setEnabled(false);
+//			// Disconnect from the reader to allow other Apps to use it
+//			// unless pausing when USB device attached or using the DeviceListActivity to
+//			// select a Reader
+//			if (!ReaderManager.sharedInstance().didCauseOnPause() && mReader != null) {
+//				mReader.disconnect();
+//			}
+//
+//			ReaderManager.sharedInstance().onPause();
+//		}
 	}
 
 	public void onHostDestroy() {
@@ -411,18 +411,18 @@ public abstract class RNRfidTslThread extends Thread {
 						map.putInt("distance", (int) distance);
 						dispatchEvent("locateTag", map);
 					} else {
-						boolean existedTag = false;
-						for (int i = 0; i < cacheTags.size(); i++) {
-							if (cacheTags.get(i).equals(transponder.getEpc())) {
-								existedTag = true;
-							}
-						}
-
-						if (!existedTag) {
+//						boolean existedTag = false;
+//						for (int i = 0; i < cacheTags.size(); i++) {
+//							if (cacheTags.get(i).equals(transponder.getEpc())) {
+//								existedTag = true;
+//							}
+//						}
+						boolean result = addTagToList(transponder.getEpc());
+						if (result) {
 							Log.e("Tag Received", transponder.getEpc());
 							Log.e("RSSI", transponder.getRssi() + "");
-							cacheTags.add(transponder.getEpc());
-							if (getCurrentRoute().equals("tagit")) {
+//							cacheTags.add(transponder.getEpc());
+							if (getCurrentRoute() != null && getCurrentRoute().equals("tagit")) {
 								if (cacheTags.size() == 1) {
 									dispatchEvent("TagEvent", transponder.getEpc());
 								}
@@ -790,5 +790,25 @@ public abstract class RNRfidTslThread extends Thread {
 	private void HandleError(Exception ex) {
 		String msg = ex.getMessage();
 		dispatchEvent("error", msg);
+	}
+
+	private boolean addTagToList(String strEPC) {
+		if (strEPC != null) {
+			if (!checkIsExisted(strEPC)) {
+				cacheTags.add(strEPC);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean checkIsExisted(String strEPC) {
+		for (int i = 0; i < cacheTags.size(); i++) {
+			String tag = cacheTags.get(i);
+			if (strEPC != null && strEPC.equals(tag)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
