@@ -246,7 +246,7 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	public void TagITReadBarcode(boolean value, Promise promise) {
 		if (scannerThread != null) {
 			scannerThread.TagITReadBarcode(value);
-			promise.resolve("Done");
+			promise.resolve(true);
 		}
 	}
 
