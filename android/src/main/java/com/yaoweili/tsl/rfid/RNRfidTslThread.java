@@ -178,7 +178,7 @@ public abstract class RNRfidTslThread extends Thread {
 		setInventoryCommand(new InventoryCommand());
 		getInventoryCommand().setResetParameters(TriState.YES);
 		// Configure the type of inventory
-		getInventoryCommand().setIncludeTransponderRssi(TriState.YES);
+		getInventoryCommand().setIncludeTransponderRssi(TriState.NO);
 		getInventoryCommand().setIncludeChecksum(TriState.YES);
 		getInventoryCommand().setIncludePC(TriState.YES);
 		getInventoryCommand().setIncludeDateTime(TriState.YES);
@@ -241,52 +241,58 @@ public abstract class RNRfidTslThread extends Thread {
 		mWriteCommand.setTransponderReceivedDelegate(mProgramTagDelegate);
 	}
 
-	public void InitLocateTag() {
+	public void InitLocateTag() throws Exception {
 		if (getCommander() != null && getCommander().isConnected() && getInventoryCommand() != null) {
 			getInventoryCommand().setResetParameters(TriState.YES);
-			getInventoryCommand().setInventoryOnly(TriState.NO);
 			getInventoryCommand().setTakeNoAction(TriState.YES);
-			getInventoryCommand().setSelectBank(Databank.ELECTRONIC_PRODUCT_CODE);
-			getInventoryCommand().setSelectAction(SelectAction.DEASSERT_SET_B_NOT_ASSERT_SET_A);
-			getInventoryCommand().setSelectTarget(SelectTarget.SESSION_0);
+			getInventoryCommand().setIncludeTransponderRssi(TriState.YES);
+			getInventoryCommand().setInventoryOnly(TriState.NO);
+
 			getInventoryCommand().setQueryTarget(QueryTarget.TARGET_B);
 			getInventoryCommand().setQuerySession(QuerySession.SESSION_0);
-			getInventoryCommand().setSelectOffset(0x20);
-			getInventoryCommand().setSelectLength(tagID.length() * 4);
+			getInventoryCommand().setSelectAction(SelectAction.DEASSERT_SET_B_NOT_ASSERT_SET_A);
+			getInventoryCommand().setSelectTarget(SelectTarget.SESSION_0);
+			getInventoryCommand().setSelectBank(Databank.ELECTRONIC_PRODUCT_CODE);
+
 			getInventoryCommand().setSelectData(tagID);
-			getCommander().executeCommand(mInventoryCommand);
-			if (!mWriteCommand.isSuccessful()) {
+			getInventoryCommand().setSelectLength(tagID.length() * 4);
+			getInventoryCommand().setSelectOffset(0x20);
+
+			getCommander().executeCommand(getInventoryCommand());
+			if (!getInventoryCommand().isSuccessful()) {
 				String errorMsg = String.format(
 						"%s failed!\nError code: %s\n",
-						mWriteCommand.getClass().getSimpleName(), mWriteCommand.getErrorCode());
-//					dispatchEvent("writeTag", errorMsg);
-//					return false;
+						mInventoryCommand.getClass().getSimpleName(), mInventoryCommand.getErrorCode());
+				Log.e("LocateTag", errorMsg);
+//				throw new Exception(errorMsg);
 			}
 		}
 	}
 
-	public boolean LocateMode(boolean value) {
+	public boolean LocateMode(boolean value) throws Exception {
 		if (getCommander() != null && getCommander().isConnected()) {
 			locateMode = value;
 			if (locateMode && tagID != null && !tagID.equals("")) {
-				InitLocateTag();
+				this.InitLocateTag();
 				return true;
 			} else {
-				getInventoryCommand().setResetParameters(TriState.YES);
-				getInventoryCommand().setTakeNoAction(TriState.YES);
-				getInventoryCommand().setIncludeTransponderRssi(TriState.YES);
-				getInventoryCommand().setIncludeChecksum(TriState.YES);
-				getInventoryCommand().setIncludePC(TriState.YES);
-				getInventoryCommand().setIncludeDateTime(TriState.YES);
-
-				getCommander().executeCommand(mInventoryCommand);
-				if (!mWriteCommand.isSuccessful()) {
-					String errorMsg = String.format(
-							"%s failed!\nError code: %s\n",
-							mWriteCommand.getClass().getSimpleName(), mWriteCommand.getErrorCode());
-//					dispatchEvent("writeTag", errorMsg);
-//					return false;
-				}
+//				getInventoryCommand().setResetParameters(TriState.YES);
+//				getInventoryCommand().setTakeNoAction(TriState.YES);
+//				getInventoryCommand().setInventoryOnly(TriState.YES);
+//				getInventoryCommand().setIncludeTransponderRssi(TriState.NO);
+//				getInventoryCommand().setIncludeChecksum(TriState.YES);
+//				getInventoryCommand().setIncludePC(TriState.YES);
+//				getInventoryCommand().setIncludeDateTime(TriState.YES);
+//
+//				getCommander().executeCommand(mInventoryCommand);
+//				if (!mInventoryCommand.isSuccessful()) {
+//					String errorMsg = String.format(
+//							"%s failed!\nError code: %s\n",
+//							mInventoryCommand.getClass().getSimpleName(), mInventoryCommand.getErrorCode());
+//					Log.e("LocateTag", errorMsg);
+//					throw new Exception(errorMsg);
+//				}
+				this.InitInventory();
 				return true;
 			}
 		}
@@ -361,7 +367,8 @@ public abstract class RNRfidTslThread extends Thread {
 					//Trigger Release
 					if (isReadBarcode && getCurrentRoute().equals("tagit")) {
 						dispatchEvent("BarcodeTrigger", false);
-					} else if (getCurrentRoute().equals("tagit")) {
+					} else if (getCurrentRoute().equals("tagit") || getCurrentRoute().equals(
+							"lookup")) {
 						cacheTags = new ArrayList<>();
 					} else if (getCurrentRoute().equals("locatetag")) {
 						WritableMap map = Arguments.createMap();
