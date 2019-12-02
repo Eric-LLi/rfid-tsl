@@ -12,7 +12,6 @@ class RFIDScanner {
 			instance = this;
 			this.opened = false;
 			this.onCallBacks = {};
-			// this.ActiveAllListener();
 		}
 	}
 
@@ -51,11 +50,6 @@ class RFIDScanner {
 			this.onCallBacks[RFIDScannerEvent.LOCATE_TAG](event);
 		}
 	};
-	// HandlerBarcode = event => {
-	// 	if (this.onCallBacks.hasOwnProperty(RFIDScannerEvent.BARCODE)) {
-	// 		this.onCallBacks[RFIDScannerEvent.BARCODE](event);
-	// 	}
-	// };
 
 	RemoveAllListener = () => {
 		if (!_.isEmpty(this.tagEvent)) {
@@ -118,22 +112,12 @@ class RFIDScanner {
 		RNRfidTsl.InitialThread();
 	};
 
-	// init = () => {
-	// 	return Promise.resolve(RNRfidTsl.Init());
-	// };
-
 	connect = () => {
 		return RNRfidTsl.ConnectDevice();
-		// try {
-		// 	const result =
-		// 	return Promise.resolve(result);
-		// } catch (err) {
-		// 	return Promise.reject(err);
-		// }
 	};
 
 	disconnect = () => {
-		RNRfidTsl.DisconnectDevice();
+		return RNRfidTsl.DisconnectDevice();
 	};
 
 	AttemptToReconnect = () => {
@@ -144,12 +128,8 @@ class RFIDScanner {
 		return RNRfidTsl.IsConnected();
 	};
 
-	SetReaderEnabled = value => {
-		RNRfidTsl.setEnabled(value);
-	};
-
 	cleanTags = () => {
-		RNRfidTsl.CleanCacheTags();
+		return RNRfidTsl.CleanCacheTags();
 	};
 
 	GetDeviceList = async () => {
@@ -157,11 +137,11 @@ class RFIDScanner {
 	};
 
 	SaveCurrentRoute = value => {
-		RNRfidTsl.SaveCurrentRoute(value);
+		return RNRfidTsl.SaveCurrentRoute(value);
 	};
 
 	SaveSelectedScanner = name => {
-		RNRfidTsl.SaveSelectedScanner(name);
+		return RNRfidTsl.SaveSelectedScanner(name);
 	};
 
 	GetConnectedReader = () => {
@@ -170,32 +150,18 @@ class RFIDScanner {
 
 	GetBatteryLevel = () => {
 		return RNRfidTsl.GetBatteryLevel();
-		// try {
-		// 	return Promise.resolve(RNRfidTsl.GetBatteryLevel());
-		// } catch (err) {
-		// 	return Promise.reject(err);
-		// }
-	};
-
-	GetAntennaLevel = () => {
-		return RNRfidTsl.GetAntennaLevel();
-		// try {
-		// 	return Promise.resolve(RNRfidTsl.GetAntennaLevel());
-		// } catch (err) {
-		// 	return Promise.reject(err);
-		// }
 	};
 
 	SetAntennaLevel = number => {
 		if (!_.isEmpty(number) && !_.isEmpty(number.antennaLevel)) {
 			let level = number.antennaLevel;
 			if (!_.isNumber(level)) level = parseInt(level);
-			RNRfidTsl.SetAntennaLevel(level);
+			return RNRfidTsl.SetAntennaLevel(level);
 		}
 	};
 
-	TagITReadBarcode = value => {
-		return RNRfidTsl.TagITReadBarcode(value);
+	ReadBarcode = value => {
+		return RNRfidTsl.ReadBarcode(value);
 	};
 
 	ProgramTag = (oldTag, newTag) => {
@@ -204,10 +170,6 @@ class RFIDScanner {
 
 	SaveTagID = tag => {
 		return RNRfidTsl.SaveTagID(tag);
-	};
-
-	LocateMode = value => {
-		return RNRfidTsl.LocateMode(value);
 	};
 
 	on = (event, callback) => {

@@ -95,12 +95,12 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 
 	}
 
-	@ReactMethod
-	public void Init(Promise promise) {
-		if (scannerThread != null) {
-			promise.resolve(scannerThread.Init());
-		}
-	}
+//	@ReactMethod
+//	public void Init(Promise promise) {
+//		if (scannerThread != null) {
+//			promise.resolve(scannerThread.Init());
+//		}
+//	}
 
 	@ReactMethod
 	public void ConnectDevice(Promise promise) {
@@ -141,10 +141,16 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	}
 
 	@ReactMethod
-	public void SaveCurrentRoute(String value) {
-		if (scannerThread != null) {
-			scannerThread.SaveCurrentRoute(value);
+	public void SaveCurrentRoute(String value, Promise promise) {
+		try {
+			if (scannerThread != null) {
+				scannerThread.SaveCurrentRoute(value);
+				promise.resolve(true);
+			}
+		} catch (Exception e) {
+			promise.reject(e);
 		}
+
 	}
 
 	@ReactMethod
@@ -179,26 +185,6 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	}
 
 	@ReactMethod
-	public void GetBatteryLevel(Promise promise) {
-		if (scannerThread != null) {
-			try {
-				promise.resolve(scannerThread.GetBatteryLevel());
-			} catch (Exception ex) {
-				promise.reject(ex);
-			}
-
-		}
-
-	}
-
-	@ReactMethod
-	public void SetBuzzer(boolean value) {
-		if (scannerThread != null) {
-			scannerThread.SetBuzzer(value);
-		}
-	}
-
-	@ReactMethod
 	public void CleanCacheTags() {
 		if (scannerThread != null) {
 			scannerThread.CleanCacheTags();
@@ -217,18 +203,6 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	}
 
 	@ReactMethod
-	public void GetAntennaLevel(Promise promise) {
-		if (scannerThread != null) {
-			try {
-				promise.resolve(scannerThread.GetAntennaLevel() + "");
-			} catch (Exception err) {
-				promise.reject(err);
-			}
-
-		}
-	}
-
-	@ReactMethod
 	public void SetAntennaLevel(int level) {
 		if (scannerThread != null) {
 			scannerThread.SetAntennaLevel(level);
@@ -236,16 +210,9 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 	}
 
 	@ReactMethod
-	public void setEnabled(boolean value) {
+	public void ReadBarcode(boolean value, Promise promise) {
 		if (scannerThread != null) {
-			scannerThread.setEnabled(value);
-		}
-	}
-
-	@ReactMethod
-	public void TagITReadBarcode(boolean value, Promise promise) {
-		if (scannerThread != null) {
-			scannerThread.TagITReadBarcode(value);
+			scannerThread.ReadBarcode(value);
 			promise.resolve(true);
 		}
 	}
@@ -255,18 +222,6 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 		try {
 			if (this.scannerThread != null) {
 				promise.resolve(scannerThread.SaveTagID(tag));
-			}
-		} catch (Exception err) {
-			promise.reject(err);
-		}
-
-	}
-
-	@ReactMethod
-	public void LocateMode(boolean value, Promise promise) {
-		try {
-			if (this.scannerThread != null) {
-				promise.resolve(scannerThread.LocateMode(value));
 			}
 		} catch (Exception err) {
 			promise.reject(err);
