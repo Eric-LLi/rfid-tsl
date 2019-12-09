@@ -145,7 +145,7 @@ public abstract class RNRfidTslThread extends Thread {
 			commander.clearResponders();
 
 			//Logger
-			commander.addResponder(new LoggerResponder());
+//			commander.addResponder(new LoggerResponder());
 
 			// Add responder to enable the synchronous commands
 			commander.addSynchronousResponder();
@@ -313,7 +313,7 @@ public abstract class RNRfidTslThread extends Thread {
 				WritableMap map = Arguments.createMap();
 				if (SwitchState.OFF.equals(state)) {
 					//Trigger Release
-					if (isReadBarcode && currentRoute.equalsIgnoreCase("tagit")) {
+					if (isReadBarcode) {
 						dispatchEvent("BarcodeTrigger", false);
 					} else if (currentRoute.equalsIgnoreCase("tagit") ||
 							currentRoute.equalsIgnoreCase("lookup")) {
@@ -324,7 +324,7 @@ public abstract class RNRfidTslThread extends Thread {
 					}
 				} else {
 					//Trigger Pull
-					if (isReadBarcode && currentRoute.equalsIgnoreCase("tagit")) {
+					if (isReadBarcode) {
 						dispatchEvent("BarcodeTrigger", true);
 					} else if (currentRoute.equalsIgnoreCase("lookup") ||
 							currentRoute.equalsIgnoreCase("locatetag")) {
@@ -362,17 +362,20 @@ public abstract class RNRfidTslThread extends Thread {
 						map.putInt("distance", (int) distance);
 						dispatchEvent("locateTag", map);
 					} else {
-						if (currentRoute != null && currentRoute.equalsIgnoreCase("tagit")) {
-							if (rssi > -50) {
-								if (addTagToList(EPC) && cacheTags.size() == 1) {
+						if (!isReadBarcode) {
+							if (currentRoute != null && currentRoute.equalsIgnoreCase("tagit")) {
+								if (rssi > -50) {
+									if (addTagToList(EPC) && cacheTags.size() == 1) {
+										dispatchEvent("TagEvent", EPC);
+									}
+								}
+							} else {
+								if (addTagToList(EPC)) {
 									dispatchEvent("TagEvent", EPC);
 								}
 							}
-						} else {
-							if (addTagToList(EPC)) {
-								dispatchEvent("TagEvent", EPC);
-							}
 						}
+
 					}
 
 				}
@@ -481,7 +484,6 @@ public abstract class RNRfidTslThread extends Thread {
 			// Stop listening for barcodes
 			// getCommander().removeResponder(mBarcodeResponder);
 		}
-
 	}
 
 //	private void testForAntenna() {
