@@ -346,17 +346,11 @@ public abstract class RNRfidTslThread extends Thread {
 					String EPC = transponder.getEpc();
 					int rssi = transponder.getRssi();
 
-					if (locateMode) {
-						//RSSI range from -45 to -70.
+					if (locateMode) {//RSSI range from -40 to -80.
 						long distance;
-						if (rssi >= -45) {
-							distance = 100;
-						} else if (rssi < -70) {
-							distance = 0;
-						} else {
-							double num = (70 + rssi) * 100 / 35;
-							distance = Math.round(num);
-						}
+						Log.e("RSSI", rssi + "");
+						distance = (100 + rssi - 20) * 100 / 40;
+						distance = Math.round(distance);
 
 						WritableMap map = Arguments.createMap();
 						map.putInt("distance", (int) distance);
