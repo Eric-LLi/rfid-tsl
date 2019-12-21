@@ -4,8 +4,9 @@ import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-
+//import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import android.support.v4.content.LocalBroadcastManager;
+import android.media.MediaPlayer;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -46,9 +47,12 @@ import com.uk.tsl.utils.HexEncoding;
 import com.uk.tsl.utils.Observable;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 public abstract class RNRfidTslThread extends Thread {
 	private ReactApplicationContext context;
+
+//	MediaPlayer mp = MediaPlayer.create(context, R.raw.beeper);
 
 	private static String currentRoute = null;
 	// The Reader currently in use
@@ -66,6 +70,14 @@ public abstract class RNRfidTslThread extends Thread {
 	private static boolean mAnyTagSeen;
 	private static ArrayList<String> cacheTags = null;
 
+	private static MediaPlayer mp = null;
+	private static Thread soundThread = null;
+	private static boolean isPlaying = false;
+	private static int soundRange = 0;
+	private static Date d1 = null;
+	private static Date d2 = null;
+	private static boolean isStartCountDown = false;
+
 	//Save tag for locating tag
 	private static String tagID = null;
 	//Indicate is in Find IT mode or not.
@@ -76,7 +88,84 @@ public abstract class RNRfidTslThread extends Thread {
 
 	public RNRfidTslThread(ReactApplicationContext context) {
 		this.context = context;
+
+		mp = MediaPlayer.create(this.context, R.raw.beeper);
 		Init();
+	}
+
+	private void PlaySound(long value) {
+		int tempRange;
+		if (value > 0 && value <= 30) {
+			tempRange = 1000;
+		} else if (value > 31 && value <= 75) {
+			tempRange = 550;
+		} else {
+			tempRange = 100;
+		}
+
+		if (tempRange != soundRange) {
+			Log.e("soundRange", soundRange + "");
+			soundRange = tempRange;
+
+			if (isPlaying) {
+				isPlaying = false;
+				soundThread.interrupt();
+				soundThread = null;
+			}
+
+			soundThread = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					isPlaying = true;
+					d2 = new Date();
+
+					while (isPlaying) {
+						Log.e("LOOP", soundRange + "");
+						d2 = new Date();
+						try {
+							Thread.sleep(soundRange);
+						} catch (InterruptedException e) {
+							e.getMessage();
+						}
+						mp.start();
+					}
+				}
+			});
+			soundThread.start();
+		} else {
+			d1 = new Date();
+		}
+	}
+
+	private void CountDownThread(final int duration) {
+		if (!isStartCountDown) {
+			isStartCountDown = true;
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					boolean loop = true;
+					while (loop) {
+						Log.e("d1.getTime()", d1.getTime() + "");
+						Log.e("d2.getTime()", d2.getTime() + "");
+						Log.e("Difference", (d2.getTime() - d1.getTime()) / 1000 + "");
+						if ((d2.getTime() - d1.getTime()) / 1000 >= duration || !isPlaying) {
+							WritableMap map = Arguments.createMap();
+							map.putInt("distance", 0);
+							dispatchEvent("locateTag", map);
+							isStartCountDown = false;
+							isPlaying = false;
+							loop = false;
+							Log.e("STOP COUNT DOWN", "STOP COUNT DOWN");
+						}
+						try {
+							Thread.sleep(800);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}).start();
+		}
 	}
 
 	public abstract void dispatchEvent(String name, WritableMap data);
@@ -312,6 +401,9 @@ public abstract class RNRfidTslThread extends Thread {
 			if (currentRoute != null) {
 				WritableMap map = Arguments.createMap();
 				if (SwitchState.OFF.equals(state)) {
+					isPlaying = false;
+					soundRange = 0;
+
 					//Trigger Release
 					if (isReadBarcode) {
 						dispatchEvent("BarcodeTrigger", false);
@@ -347,6 +439,7 @@ public abstract class RNRfidTslThread extends Thread {
 					int rssi = transponder.getRssi();
 
 					if (locateMode) {
+						d1 = new Date();
 						//RSSI range from -40 to -80.
 						//((input - min) * 100) / (max - min)
 						long distance;
@@ -354,9 +447,15 @@ public abstract class RNRfidTslThread extends Thread {
 						distance = (100 + rssi - 20) * 100 / 40;
 						distance = Math.round(distance);
 
+						Log.e("distance", distance + "");
 						WritableMap map = Arguments.createMap();
 						map.putInt("distance", (int) distance);
 						dispatchEvent("locateTag", map);
+
+						PlaySound(distance);
+
+						CountDownThread(3);
+
 					} else {
 						if (!isReadBarcode) {
 							if (currentRoute != null && currentRoute.equalsIgnoreCase("tagit")) {
