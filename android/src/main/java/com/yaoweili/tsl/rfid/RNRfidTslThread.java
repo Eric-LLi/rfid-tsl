@@ -234,7 +234,7 @@ public abstract class RNRfidTslThread extends Thread {
 			commander.clearResponders();
 
 			//Logger
-//			commander.addResponder(new LoggerResponder());
+			commander.addResponder(new LoggerResponder());
 
 			// Add responder to enable the synchronous commands
 			commander.addSynchronousResponder();
