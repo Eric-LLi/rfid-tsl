@@ -20,6 +20,7 @@ import com.uk.tsl.rfid.asciiprotocol.AsciiCommander;
 import com.uk.tsl.rfid.asciiprotocol.commands.AlertCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.BatteryStatusCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.FactoryDefaultsCommand;
+import com.uk.tsl.rfid.asciiprotocol.commands.FindTagCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.InventoryCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.SwitchActionCommand;
 import com.uk.tsl.rfid.asciiprotocol.commands.WriteTransponderCommand;
@@ -35,12 +36,15 @@ import com.uk.tsl.rfid.asciiprotocol.enumerations.QuerySession;
 import com.uk.tsl.rfid.asciiprotocol.enumerations.QueryTarget;
 import com.uk.tsl.rfid.asciiprotocol.enumerations.SelectAction;
 import com.uk.tsl.rfid.asciiprotocol.enumerations.SelectTarget;
+import com.uk.tsl.rfid.asciiprotocol.enumerations.SwitchAction;
 import com.uk.tsl.rfid.asciiprotocol.enumerations.SwitchState;
 import com.uk.tsl.rfid.asciiprotocol.enumerations.TriState;
 import com.uk.tsl.rfid.asciiprotocol.responders.ICommandResponseLifecycleDelegate;
+import com.uk.tsl.rfid.asciiprotocol.responders.ISignalStrengthReceivedDelegate;
 import com.uk.tsl.rfid.asciiprotocol.responders.ISwitchStateReceivedDelegate;
 import com.uk.tsl.rfid.asciiprotocol.responders.ITransponderReceivedDelegate;
 import com.uk.tsl.rfid.asciiprotocol.responders.LoggerResponder;
+import com.uk.tsl.rfid.asciiprotocol.responders.SignalStrengthResponder;
 import com.uk.tsl.rfid.asciiprotocol.responders.SwitchResponder;
 import com.uk.tsl.rfid.asciiprotocol.responders.TransponderData;
 import com.uk.tsl.utils.HexEncoding;
@@ -51,8 +55,6 @@ import java.util.Date;
 
 public abstract class RNRfidTslThread extends Thread {
 	private ReactApplicationContext context;
-
-//	MediaPlayer mp = MediaPlayer.create(context, R.raw.beeper);
 
 	private static String currentRoute = null;
 	// The Reader currently in use
@@ -65,11 +67,16 @@ public abstract class RNRfidTslThread extends Thread {
 	//Indicate to read barcode
 	private static boolean isReadBarcode = false;
 
+	//Trigger
+	private static SwitchResponder mSwitchResponder = null;
+	private static SwitchActionCommand switchActionCommand = null;
+	//Inventory
 	private static InventoryCommand mInventoryCommand = null;
 	private static InventoryCommand mInventoryResponder = null;
 	private static boolean mAnyTagSeen;
 	private static ArrayList<String> cacheTags = null;
 
+	//Play Sound
 	private static MediaPlayer mp = null;
 	private static Thread soundThread = null;
 	private static boolean isPlaying = false;
@@ -78,13 +85,19 @@ public abstract class RNRfidTslThread extends Thread {
 	private static Date d2 = null;
 	private static boolean isStartCountDown = false;
 
-	//Save tag for locating tag
+	//Save tag for Find IT
 	private static String tagID = null;
+
 	//Indicate is in Find IT mode or not.
-	private static boolean locateMode = false;
+	private static boolean isLocateMode = false;
+
+	//Find IT command
+	private static FindTagCommand mFindTagCommand = null;
+	private static SignalStrengthResponder mSignalStrengthResponder = null;
+
 	//Program tag
-	private static final WriteTransponderCommand mWriteCommand =
-			WriteTransponderCommand.synchronousCommand();
+	private static WriteTransponderCommand mWriteCommand = null;
+
 
 	public RNRfidTslThread(ReactApplicationContext context) {
 		this.context = context;
@@ -298,19 +311,23 @@ public abstract class RNRfidTslThread extends Thread {
 
 	private void InitTrigger() {
 		//Trigger Init
-		SwitchResponder switchResponder = new SwitchResponder();
-		switchResponder.setSwitchStateReceivedDelegate(mSwitchDelegate);
-		getCommander().addResponder(switchResponder);
+		// The switch state responder
+		mSwitchResponder = new SwitchResponder();
+		mSwitchResponder.setSwitchStateReceivedDelegate(mSwitchDelegate);
+		getCommander().addResponder(mSwitchResponder);
 
 		// Configure the switch actions
-		SwitchActionCommand saCommand = SwitchActionCommand.synchronousCommand();
+		switchActionCommand = SwitchActionCommand.synchronousCommand();
 		// Enable asynchronous switch state reporting
-		saCommand.setAsynchronousReportingEnabled(TriState.YES);
+		switchActionCommand.setAsynchronousReportingEnabled(TriState.YES);
 
-		getCommander().executeCommand(saCommand);
+		switchActionCommand.setSinglePressAction(SwitchAction.INVENTORY);
+		getCommander().executeCommand(switchActionCommand);
 	}
 
 	private void InitProgramTag() {
+		mWriteCommand = WriteTransponderCommand.synchronousCommand();
+
 		mWriteCommand.setResetParameters(TriState.YES);
 
 		mWriteCommand.setSelectOffset(0x20);
@@ -359,6 +376,38 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	}
 
+	private void InitLocateTag2() throws Exception {
+		if (getCommander() != null && getCommander().isConnected() && tagID != null) {
+
+			// The responder to capture incoming RSSI responses
+			mSignalStrengthResponder = new SignalStrengthResponder();
+			mSignalStrengthResponder.setPercentageSignalStrengthReceivedDelegate(mFindITPercentageDelegate);
+			mSignalStrengthResponder.setRawSignalStrengthReceivedDelegate(mFindITRawDelegate);
+
+			switchActionCommand.setSinglePressRepeatDelay(10);
+
+			getCommander().addResponder(mSignalStrengthResponder);
+
+			getCommander().executeCommand(switchActionCommand);
+
+			mFindTagCommand = FindTagCommand.synchronousCommand();
+			mFindTagCommand.setResetParameters(TriState.YES);
+
+			mFindTagCommand.setSelectData(tagID);
+			mFindTagCommand.setSelectLength(tagID.length() * 4);
+			mFindTagCommand.setSelectOffset(0x20);
+
+			mFindTagCommand.setTakeNoAction(TriState.YES);
+
+			getCommander().executeCommand(mFindTagCommand);
+
+			boolean isSuccess = mFindTagCommand.isSuccessful();
+			Log.e("Success", isSuccess + "");
+		} else {
+			throw new Exception("Initialize locate tag fail");
+		}
+	}
+
 	public boolean SaveTagID(String tag) {
 		if (getCommander() != null && getCommander().isConnected()) {
 			tagID = tag;
@@ -401,11 +450,17 @@ public abstract class RNRfidTslThread extends Thread {
 			if (currentRoute != null) {
 				WritableMap map = Arguments.createMap();
 				if (SwitchState.OFF.equals(state)) {
-					isPlaying = false;
-					soundRange = 0;
-
 					//Trigger Release
-					if (isReadBarcode) {
+					if (isLocateMode) {
+						isPlaying = false;
+						soundRange = 0;
+						if (mSignalStrengthResponder.getRawSignalStrengthReceivedDelegate() != null) {
+							mSignalStrengthResponder.getRawSignalStrengthReceivedDelegate().signalStrengthReceived(0);
+						}
+						if (mSignalStrengthResponder.getPercentageSignalStrengthReceivedDelegate() != null) {
+							mSignalStrengthResponder.getPercentageSignalStrengthReceivedDelegate().signalStrengthReceived(0);
+						}
+					} else if (isReadBarcode) {
 						dispatchEvent("BarcodeTrigger", false);
 					} else if (currentRoute.equalsIgnoreCase("tagit") ||
 							currentRoute.equalsIgnoreCase("lookup")) {
@@ -428,6 +483,22 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	};
 
+	//Find IT Percentage Delegate handler
+	private final ISignalStrengthReceivedDelegate mFindITPercentageDelegate = new ISignalStrengthReceivedDelegate() {
+		@Override
+		public void signalStrengthReceived(Integer level) {
+			Log.e("Percentage: ", level + "");
+		}
+	};
+
+	//Find IT Raw Delegate handler
+	private final ISignalStrengthReceivedDelegate mFindITRawDelegate = new ISignalStrengthReceivedDelegate() {
+		@Override
+		public void signalStrengthReceived(Integer level) {
+			Log.e("Raw: ", level + "");
+		}
+	};
+
 	//Inventory Delegate Handler
 	private final ITransponderReceivedDelegate mInventoryDelegate =
 			new ITransponderReceivedDelegate() {
@@ -438,7 +509,7 @@ public abstract class RNRfidTslThread extends Thread {
 					String EPC = transponder.getEpc();
 					int rssi = transponder.getRssi();
 
-					if (locateMode) {
+					if (isLocateMode) {
 						d1 = new Date();
 						//RSSI range from -40 to -80.
 						//((input - min) * 100) / (max - min)
@@ -472,7 +543,6 @@ public abstract class RNRfidTslThread extends Thread {
 						}
 
 					}
-
 				}
 			};
 
@@ -526,7 +596,7 @@ public abstract class RNRfidTslThread extends Thread {
 			//Save tag for locating tag
 			tagID = null;
 			//Indicate is in Find IT mode or not.
-			locateMode = false;
+			isLocateMode = false;
 		}
 	}
 
@@ -571,11 +641,15 @@ public abstract class RNRfidTslThread extends Thread {
 		if (state) {
 			// Listen for transponders
 			getCommander().addResponder(mInventoryResponder);
+//			getCommander().addResponder(mSwitchResponder);
+
 			// Listen for barcodes
 			// getCommander().addResponder(mBarcodeResponder);
 		} else {
 			// Stop listening for transponders
 			getCommander().removeResponder(mInventoryResponder);
+//			getCommander().removeResponder(mSwitchResponder);
+
 			// Stop listening for barcodes
 			// getCommander().removeResponder(mBarcodeResponder);
 		}
@@ -597,12 +671,12 @@ public abstract class RNRfidTslThread extends Thread {
 		currentRoute = value;
 		if (currentRoute != null) {
 			setEnabled(true);
-			if (locateMode && !currentRoute.equalsIgnoreCase("locateTag")) {
+			if (isLocateMode && !currentRoute.equalsIgnoreCase("locateTag")) {
 				InitInventory();
-				locateMode = false;
+				isLocateMode = false;
 			} else if (currentRoute.equalsIgnoreCase("locateTag")) {
-				InitLocateTag();
-				locateMode = true;
+				InitLocateTag2();
+				isLocateMode = true;
 			}
 
 		} else {
