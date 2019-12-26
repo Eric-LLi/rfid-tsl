@@ -89,7 +89,7 @@ public class RNRfidTslModule extends ReactContextBaseJavaModule implements Lifec
 			this.scannerThread.start();
 
 		} catch (Exception err) {
-			Log.e("Error", err.getMessage());
+			Log.e("InitialThread", err.getMessage());
 		}
 
 

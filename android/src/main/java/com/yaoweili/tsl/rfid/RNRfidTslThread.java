@@ -83,7 +83,7 @@ public abstract class RNRfidTslThread extends Thread {
 
 	private SignalPercentageConverter mPercentageConverter = new SignalPercentageConverter();
 
-	public RNRfidTslThread(ReactApplicationContext context) {
+	RNRfidTslThread(ReactApplicationContext context) {
 		this.context = context;
 
 		mp = MediaPlayer.create(this.context, R.raw.beeper);
@@ -129,7 +129,7 @@ public abstract class RNRfidTslThread extends Thread {
 
 	public abstract void dispatchEvent(String name, boolean data);
 
-	public void onHostResume() {
+	void onHostResume() {
 //		if (mReader != null && ReaderManager.sharedInstance() != null) {
 //			// setEnabled(true);
 //			// Remember if the pause/resume was caused by ReaderManager - this will be
@@ -152,7 +152,7 @@ public abstract class RNRfidTslThread extends Thread {
 //		}
 	}
 
-	public void onHostPause() {
+	void onHostPause() {
 //		if (mReader != null && ReaderManager.sharedInstance() != null) {
 //			setEnabled(false);
 //			// Disconnect from the reader to allow other Apps to use it
@@ -166,7 +166,7 @@ public abstract class RNRfidTslThread extends Thread {
 //		}
 	}
 
-	public void onHostDestroy() {
+	void onHostDestroy() {
 		DisconnectDevice();
 
 		LocalBroadcastManager.getInstance(this.context).unregisterReceiver(mCommanderMessageReceiver);
@@ -328,7 +328,7 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	}
 
-	public boolean SaveTagID(String tag) {
+	boolean SaveTagID(String tag) {
 		if (getCommander() != null && getCommander().isConnected()) {
 			tagID = tag;
 			return true;
@@ -336,10 +336,10 @@ public abstract class RNRfidTslThread extends Thread {
 		return false;
 	}
 
-	public boolean ProgramTag(String oldTag, String newTag) {
+	boolean ProgramTag(String oldTag, String newTag) {
 		if (getCommander() != null && getCommander().isConnected()) {
 			if (oldTag != null && newTag != null) {
-				byte[] data = null;
+				byte[] data;
 				data = HexEncoding.stringToBytes(newTag);
 				mWriteCommand.setData(data);
 				mWriteCommand.setLength(data.length / 2);
@@ -452,7 +452,7 @@ public abstract class RNRfidTslThread extends Thread {
 				//
 			};
 
-	public void DisconnectDevice() {
+	void DisconnectDevice() {
 		if (mReader != null && getCommander() != null) {
 			setEnabled(false);
 
@@ -497,7 +497,7 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	}
 
-	public boolean ConnectDevice() {
+	boolean ConnectDevice() {
 		if (selectedReader != null && mReaders != null) {
 			for (Reader reader : mReaders) {
 				if (reader.getDisplayName().equals(selectedReader)) {
@@ -512,7 +512,7 @@ public abstract class RNRfidTslThread extends Thread {
 		return false;
 	}
 
-	public boolean AttemptToReconnect() {
+	boolean AttemptToReconnect() {
 		if (selectedReader != null) {
 			AutoSelectReader(true);
 			return true;
@@ -520,14 +520,14 @@ public abstract class RNRfidTslThread extends Thread {
 		return false;
 	}
 
-	public boolean IsConnected() {
+	boolean IsConnected() {
 		if (getCommander() != null) {
 			return getCommander().isConnected();
 		}
 		return false;
 	}
 
-	public void CleanCacheTags() {
+	void CleanCacheTags() {
 		if (getCommander() != null && getCommander().isConnected()) {
 			cacheTags = new ArrayList<>();
 		}
@@ -564,7 +564,7 @@ public abstract class RNRfidTslThread extends Thread {
 //		}
 //	}
 
-	public void SaveCurrentRoute(String value) throws Exception {
+	void SaveCurrentRoute(String value) throws Exception {
 		currentRoute = value;
 		if (currentRoute != null) {
 			setEnabled(true);
@@ -577,10 +577,11 @@ public abstract class RNRfidTslThread extends Thread {
 			}
 		} else {
 			setEnabled(false);
+			isReadBarcode = false;
 		}
 	}
 
-	public WritableArray GetDeviceList() {
+	WritableArray GetDeviceList() {
 		WritableArray deviceList = Arguments.createArray();
 		ReaderManager.sharedInstance().updateList();
 		mReaders = ReaderManager.sharedInstance().getReaderList().list();
@@ -624,7 +625,7 @@ public abstract class RNRfidTslThread extends Thread {
 //		return 0;
 //	}
 
-	public void SetAntennaLevel(int level) {
+	void SetAntennaLevel(int level) {
 		if (getCommander() != null && getCommander().isConnected()) {
 			mInventoryCommand.setOutputPower(level);
 			mInventoryCommand.setTakeNoAction(TriState.YES);
@@ -641,11 +642,11 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	}
 
-	public void SaveSelectedScanner(String name) {
+	void SaveSelectedScanner(String name) {
 		selectedReader = name;
 	}
 
-	public String GetConnectedReader() {
+	String GetConnectedReader() {
 		return selectedReader;
 	}
 
@@ -782,7 +783,7 @@ public abstract class RNRfidTslThread extends Thread {
 		}
 	};
 
-	public void ReadBarcode(boolean value) {
+	void ReadBarcode(boolean value) {
 		isReadBarcode = value;
 
 		//If read barcode, then turn off RFID mode.
